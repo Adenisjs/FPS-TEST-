@@ -1,0 +1,27 @@
+const ytdl = require('ytdl-core'); 
+const fs = require('fs');
+const ffmpeg = require('fluent-ffmpeg');
+const { exec } = require('child_process');
+
+const videoURL = 'PUT YOUR YOUTUBE URL HERE';
+const { spawn } = require('child_process')
+const video = ytdl(videoURL, { quality: 'highestaudio' });
+video.pipe(fs.createWriteStream('video.mp4'));
+
+video.on('end', () => {
+  console.log('Video downloaded successfully! Now playing...');
+
+  const command = `ffplay -nodisp -autoexit video.mp4`;
+  exec(command, (error, stdout, stderr) => {
+    if (error) {
+      console.error(`Error occurred: ${error.message}`);
+      return;
+    }
+    if (stderr) {
+      console.error(`ffplay error: ${stderr}`);
+      return;
+    }
+    console.log(`Playback finished: ${stdout}`);
+    fs.unlinkSync('video.mp4');
+  });
+});
