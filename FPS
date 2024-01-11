@@ -1,0 +1,168 @@
+import pygame
+import sys
+import random
+
+# Initialize Pygame
+pygame.init()
+
+# Screen dimensions
+screen_width = 800
+screen_height = 600
+
+# Player attributes
+player_size = 50
+player_x = screen_width // 2 - player_size // 2
+player_y = screen_height - player_size - 20
+player_speed = 5
+player_health = 100
+
+# Health bar attributes
+health_bar_length = 100
+health_bar_height = 20
+health_bar_border = 2
+
+# Gun attributes
+gun_attributes = [
+    {'size': 6, 'speed': 10, 'color': (255, 0, 0)},   # Gun 1 attributes (Red)
+    {'size': 10, 'speed': 12, 'color': (0, 255, 0)},  # Gun 2 attributes (Green)
+    {'size': 8, 'speed': 8, 'color': (0, 0, 255)}     # Gun 3 attributes (Blue)
+]
+current_gun = 0  # Index to track the current gun type
+
+# Bullets and enemies
+bullets = []
+enemy_size = 50
+enemies = []
+enemy_health = 3  # Health of enemies
+level = 1
+max_enemies = 20
+
+# Medkit attributes
+medkit_size = 30
+medkits = []
+
+# Set up the window
+screen = pygame.display.set_mode((screen_width, screen_height))
+pygame.display.set_caption("Simple 2D FPS - Levels")
+
+clock = pygame.time.Clock()
+
+# Score and level display
+score = 0
+font = pygame.font.Font(None, 36)
+
+# Function to handle shooting with different guns
+def shoot():
+    bullet = {'x': player_x + player_size // 2 - gun_attributes[current_gun]['size'] // 2,
+              'y': player_y + player_size // 2 - gun_attributes[current_gun]['size'] // 2,
+              'size': gun_attributes[current_gun]['size'],
+              'speed': gun_attributes[current_gun]['speed'],
+              'color': gun_attributes[current_gun]['color']}
+    bullets.append(bullet)
+
+# Function to switch guns
+def switch_gun():
+    global current_gun
+    current_gun = (current_gun + 1) % len(gun_attributes)
+
+# Function to create enemies based on level
+def create_enemies():
+    for _ in range(max_enemies * level):
+        enemy_x = random.randint(0, screen_width - enemy_size)
+        enemy_y = random.randint(-screen_height, 0)
+        enemies.append({'x': enemy_x, 'y': enemy_y, 'health': enemy_health})  # Include health attribute
+
+# Function to create medkits
+def create_medkits():
+    medkit_x = random.randint(0, screen_width - medkit_size)
+    medkit_y = random.randint(0, screen_height - medkit_size)
+    medkits.append({'x': medkit_x, 'y': medkit_y})
+
+# Main game loop
+running = True
+while running:
+    screen.fill((0, 0, 0))
+
+    # Event handling
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE:
+                shoot()
+            elif event.key == pygame.K_TAB:
+                switch_gun()
+
+    # Player movement
+    keys = pygame.key.get_pressed()
+    player_x += (keys[pygame.K_d] - keys[pygame.K_a]) * player_speed
+    player_y += (keys[pygame.K_s] - keys[pygame.K_w]) * player_speed
+    player_x = max(0, min(player_x, screen_width - player_size))
+    player_y = max(0, min(player_y, screen_height - player_size))
+
+    # Draw the player
+    pygame.draw.rect(screen, (255, 255, 255), (player_x, player_y, player_size, player_size))
+
+    # Draw the health bar
+    pygame.draw.rect(screen, (255, 0, 0),
+                     (player_x, player_y - 30, health_bar_length, health_bar_height))
+    pygame.draw.rect(screen, (0, 255, 0),
+                     (player_x, player_y - 30, health_bar_length * (player_health / 100), health_bar_height),
+                     health_bar_border)
+
+    # Update and draw bullets
+    for bullet in bullets:
+        pygame.draw.rect(screen, bullet['color'], (bullet['x'], bullet['y'], bullet['size'], bullet['size']))
+        bullet['y'] -= bullet['speed']
+
+        # Check collision with enemies
+        for enemy in enemies[:]:
+            if (bullet['x'] < enemy['x'] + enemy_size and bullet['x'] + bullet['size'] > enemy['x']
+                    and bullet['y'] < enemy['y'] + enemy_size and bullet['y'] + bullet['size'] > enemy['y']):
+                bullets.remove(bullet)
+                enemy['health'] -= 1  # Reduce enemy health when hit
+                if enemy['health'] <= 0:
+                    enemies.remove(enemy)
+                    score += 1
+                break
+
+    # Remove bullets that go off-screen
+    bullets = [bullet for bullet in bullets if bullet['y'] > 0]
+
+    # Create enemies for the current level
+    if not enemies:
+        level += 1
+        max_enemies += 2  # Increase max enemies per level
+        create_enemies()
+
+    # Update and draw enemies
+    for enemy in enemies:
+        pygame.draw.rect(screen, (255, 0, 0), (enemy['x'], enemy['y'], enemy_size, enemy_size))
+        enemy['y'] += 1
+
+    # Create medkits
+    if len(medkits) < 1:
+        create_medkits()
+
+    # Draw medkits
+    for medkit in medkits:
+        pygame.draw.rect(screen, (0, 255, 0), (medkit['x'], medkit['y'], medkit_size, medkit_size))
+
+        # Check collision with player for medkits
+        if (player_x < medkit['x'] + medkit_size and player_x + player_size > medkit['x']
+                and player_y < medkit['y'] + medkit_size and player_y + player_size > medkit['y']):
+            medkits.remove(medkit)
+            # Perform actions related to medkits (e.g., increase player's health)
+            player_health = min(100, player_health + 20)  # Increase player's health, capped at 100
+
+    # Display score and level
+    score_text = font.render(f"Score: {score}", True, (255, 255, 255))
+    level_text = font.render(f"Level: {level}", True, (255, 255, 255))
+    screen.blit(score_text, (10, 10))
+    screen.blit(level_text, (10, 50))
+
+    pygame.display.update()
+    clock.tick(60)
+
+pygame.quit()
+sys.exit()
